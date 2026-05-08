@@ -1,0 +1,8 @@
+{
+  "name": "School Jaarplanner 2.0",
+  "description": "An application for creating and managing a school's annual schedule, including tracking teaching time, holidays, and special events, with separate views for internal staff and parents.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": []
+}

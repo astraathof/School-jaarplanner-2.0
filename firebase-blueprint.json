@@ -1,0 +1,71 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information and workspace access",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLogin": { "type": "string", "format": "date-time" },
+        "role": { "type": "string", "enum": ["admin", "editor", "viewer"] }
+      },
+      "required": ["uid", "email"]
+    },
+    "Planner": {
+      "title": "School Planner",
+      "description": "A shared or personal school planner instance",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "collaborators": { 
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of UIDs who can access this planner"
+        },
+        "settings": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Event": {
+      "title": "School Event",
+      "description": "An individual event in the planner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "type": { "type": "string" },
+        "description": { "type": "string" },
+        "isTeachingDay": { "type": "boolean" },
+        "durationMultiplier": { "type": "number", "enum": [0.5, 1] },
+        "createdBy": { "type": "string" },
+        "updatedBy": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/planners/{plannerId}": {
+      "schema": "Planner",
+      "description": "Shared planner metadata and permissions"
+    },
+    "/planners/{plannerId}/events/{eventId}": {
+      "schema": "Event",
+      "description": "Events within a specific planner"
+    },
+    "/invitations/{invitationId}": {
+      "schema": "object",
+      "description": "Pending invitations to join a planner"
+    }
+  }
+}

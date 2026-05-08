@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-serif: "Playfair Display", serif;
+  
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+  --color-brand-950: #172554;
+}
+
+@layer base {
+  :root {
+    --bg-main: #F8FAFC;
+    --bg-card: #FFFFFF;
+    --bg-sidebar: #FFFFFF;
+    --text-main: #0F172A;
+    --text-muted: #64748B;
+    --border-main: #E2E8F0;
+    --ring-main: rgba(59, 130, 246, 0.1);
+  }
+
+  .dark {
+    --bg-main: #0F172A;
+    --bg-card: #1E293B;
+    --bg-sidebar: #1E293B;
+    --text-main: #F8FAFC;
+    --text-muted: #94A3B8;
+    --border-main: #334155;
+    --ring-main: rgba(59, 130, 246, 0.2);
+  }
+
+  body {
+    @apply bg-[var(--bg-main)] text-[var(--text-main)] antialiased transition-colors duration-300 selection:bg-blue-100 selection:text-blue-900;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight text-[var(--text-main)];
+  }
+}
+
+@layer components {
+  .calendar-grid-container {
+    @apply p-8 lg:p-12 bg-[var(--bg-card)] rounded-[2.5rem] lg:rounded-[4rem] shadow-2xl shadow-slate-200/50 dark:shadow-none border border-[var(--border-main)] transition-colors duration-300;
+  }
+
+  .glass-card {
+    @apply bg-[var(--bg-card)]/70 backdrop-blur-2xl border border-[var(--border-main)] shadow-2xl transition-colors duration-300;
+  }
+
+  .btn-primary {
+    @apply px-6 py-3 bg-slate-900 dark:bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-blue-600 dark:hover:bg-blue-500 transition-all active:scale-95 shadow-xl shadow-slate-200 dark:shadow-none;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-main)] rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-[var(--bg-main)] hover:text-blue-600 transition-all active:scale-95 shadow-sm;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Custom Scrollbar for other areas */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
+}
+
+/* Print optimizations */
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  @page {
+    size: portrait;
+    margin: 1cm;
+  }
+  body { background: white !important; }
+  .calendar-grid-container {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+}

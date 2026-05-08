@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Catch-all deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function emailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isMemberOfPlanner(plannerId) {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/planners/$(plannerId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/planners/$(plannerId)).data.collaborators
+      );
+    }
+
+    function isOwnerOfPlanner(plannerId) {
+      return isSignedIn() && 
+        get(/databases/$(database)/documents/planners/$(plannerId)).data.ownerId == request.auth.uid;
+    }
+
+    // User profiles
+    match /users/{uid} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create, update: if isSignedIn() && uid == request.auth.uid;
+    }
+
+    // Planners
+    match /planners/{plannerId} {
+      function isValidPlanner(data) {
+        return data.name is string && data.name.size() <= 100 
+          && data.ownerId == request.auth.uid;
+      }
+
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid || 
+        request.auth.uid in resource.data.collaborators
+      );
+      allow create: if isSignedIn() && isValidPlanner(request.resource.data);
+      allow update: if isSignedIn() && (
+        isOwnerOfPlanner(plannerId) || 
+        (request.auth.uid in resource.data.collaborators && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt']))
+      );
+      allow delete: if isOwnerOfPlanner(plannerId);
+
+      // Events subcollection
+      match /events/{eventId} {
+        function isValidEvent(data) {
+          return data.title is string && data.title.size() <= 200
+            && data.date is string;
+        }
+
+        allow read: if isMemberOfPlanner(plannerId) || isOwnerOfPlanner(plannerId);
+        allow create, update: if (isMemberOfPlanner(plannerId) || isOwnerOfPlanner(plannerId)) 
+          && isValidEvent(request.resource.data);
+        allow delete: if isMemberOfPlanner(plannerId) || isOwnerOfPlanner(plannerId);
+      }
+    }
+
+    // Invitations
+    match /invitations/{invitationId} {
+      allow get: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.inviterId == request.auth.uid;
+      allow delete: if isSignedIn() && (resource.data.inviterId == request.auth.uid || resource.data.inviteeEmail == request.auth.token.email);
+    }
+  }
+}

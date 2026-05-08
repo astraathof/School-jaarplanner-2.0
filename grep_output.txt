@@ -1,0 +1,15 @@
+106:    const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(initialData?.academicYear || '2024-2025');
+639:    const academicYear = useMemo(() => {
+729:        let currentDate = new Date(academicYear.start);
+730:        const endDate = new Date(academicYear.end);
+774:    }, [events, allHolidays, academicYear, settings.schoolType, settings.timetables]);
+796:        let cursor = new Date(academicYear.start);
+801:        while (cursor < academicYear.end) {
+846:    }, [events, allHolidays, academicYear]);
+1532:                    academicYear={academicYear}
+1581:        let currentMonthDate = new Date(academicYear.start);
+1583:        while (currentMonthDate < academicYear.end) {
+1933:                        academicYear={academicYear}
+2488:                                        academicYear={academicYear} 
+2562:                                        academicYear={academicYear}
+2583:                academicYear={academicYear}
