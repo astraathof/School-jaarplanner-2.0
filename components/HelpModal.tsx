@@ -1,15 +1,16 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, BookOpen, Clock, Users, Shield, Zap, Info, HelpCircle, ChevronRight } from 'lucide-react';
+import { X, BookOpen, Clock, Users, Shield, Zap, Info, HelpCircle, ChevronRight, FileDown, Sparkles, Target, FileText } from 'lucide-react';
 
 interface HelpModalProps {
     isOpen: boolean;
     onClose: () => void;
     onStartTour: () => void;
+    onDownloadManual: () => void;
 }
 
-export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, onStartTour }) => {
+export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, onStartTour, onDownloadManual }) => {
     return (
         <AnimatePresence>
             {isOpen && (
@@ -18,18 +19,28 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, onStartTo
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-100 dark:border-slate-800" 
+                        className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-100 dark:border-slate-800" 
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Header */}
-                        <div className="p-8 border-b dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
+                        <div className="p-8 border-b dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center shrink-0">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-2xl">
                                     <HelpCircle className="h-6 w-6" />
                                 </div>
-                                <div>
-                                    <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">Helpcentrum</h2>
-                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mt-2 opacity-60">Alles wat je moet weten over de Jaarplanner</p>
+                                <div className="flex flex-col">
+                                    <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">Helpcentrum & Resources</h2>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] opacity-60">Alles over de Jaarplanner</p>
+                                        <div className="h-1 w-1 bg-slate-200 rounded-full" />
+                                        <button 
+                                            onClick={onDownloadManual}
+                                            className="flex items-center gap-1.5 text-[9px] font-black text-rose-600 uppercase tracking-widest hover:underline group"
+                                        >
+                                            <FileText size={12} className="group-hover:translate-y-0.5 transition-transform" />
+                                            Handleiding (PDF)
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all text-slate-400">
@@ -38,8 +49,8 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, onStartTo
                         </div>
 
                         {/* Content */}
-                        <div className="p-8 overflow-y-auto flex-grow bg-slate-50/30 dark:bg-slate-900/30 h-full">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="p-8 overflow-y-auto flex-grow bg-slate-50/30 dark:bg-slate-900/30">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                 {/* Section: Snelstart */}
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2 text-blue-600">
@@ -49,15 +60,37 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, onStartTo
                                     <ul className="space-y-3">
                                         <li className="flex gap-3">
                                             <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-full text-[10px] font-bold">1</span>
-                                            <p className="text-xs text-slate-600 dark:text-slate-400">Stel je schooljaar en regio in bij de <b>Instellingen</b>.</p>
+                                            <p className="text-xs text-slate-600 dark:text-slate-400">Gebruik <b>AI Snelstart</b> (Slimme Import) om direct een PDF of foto om te zetten naar een werkende agenda.</p>
                                         </li>
                                         <li className="flex gap-3">
                                             <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-full text-[10px] font-bold">2</span>
-                                            <p className="text-xs text-slate-600 dark:text-slate-400">Gebruik de <b>Vakantie Sync</b> om direct nationale feestdagen toe te voegen.</p>
+                                            <p className="text-xs text-slate-600 dark:text-slate-400"><b>Uniek:</b> Koppel <b>Jaardoelen</b> direct uit het schoolplan aan je kalender voor kwaliteitsborging.</p>
                                         </li>
                                         <li className="flex gap-3">
                                             <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-blue-100 dark:bg-blue-900/40 text-blue-600 rounded-full text-[10px] font-bold">3</span>
-                                            <p className="text-xs text-slate-600 dark:text-slate-400">Sleep events vanuit de werkbalk aan de rechterkant naar je kalender.</p>
+                                            <p className="text-xs text-slate-600 dark:text-slate-400">Draai een <b>Health Check</b> of bekijk de <b>Heatmap</b> voor direct inzicht in werkdruk en dekking.</p>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                {/* Section: Kwaliteit & Strategie */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 text-indigo-600">
+                                        <Target size={18} className="fill-current bg-indigo-100 dark:bg-indigo-900/40 p-1 rounded-md" />
+                                        <h3 className="text-sm font-black uppercase tracking-widest">Kwaliteit & Strategie</h3>
+                                    </div>
+                                    <ul className="space-y-3">
+                                        <li className="flex gap-3">
+                                            <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 rounded-full text-[10px] font-bold">4</span>
+                                            <p className="text-xs text-slate-600 dark:text-slate-400">Gebruik de <b>Kwaliteitsmatrix</b> om te zien of je planning voldoet aan de inspectie-eisen.</p>
+                                        </li>
+                                        <li className="flex gap-3">
+                                            <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 rounded-full text-[10px] font-bold">5</span>
+                                            <p className="text-xs text-slate-600 dark:text-slate-400">De <b>Heatmap</b> geeft je direct visueel inzicht in de werkdrukspreiding over het jaar.</p>
+                                        </li>
+                                        <li className="flex gap-3">
+                                            <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 rounded-full text-[10px] font-bold">6</span>
+                                            <p className="text-xs text-slate-600 dark:text-slate-400">Draai een <b>Health Check</b> om blinde vlekken in je planning te ontdekken.</p>
                                         </li>
                                     </ul>
                                 </div>

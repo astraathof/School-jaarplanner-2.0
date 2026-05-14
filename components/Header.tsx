@@ -968,6 +968,7 @@ export const Header: React.FC<HeaderProps> = (props) => {
                     />
 
                     <button
+                        id="header-help-btn"
                         onClick={onShowHelp}
                         className="p-2 text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-blue-600 rounded-xl transition-all"
                         title="Helpcentrum"

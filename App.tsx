@@ -32,6 +32,7 @@ import { ActivityLogModal } from './components/ActivityLogModal';
 import { HelpModal } from './components/HelpModal';
 import { BulkAddModal } from './components/BulkAddModal';
 import { ShortenedWeeksModal } from './components/ShortenedWeeksModal';
+import { ManualPrint } from './components/ManualPrint';
 import { SchoolEvent, SchoolSettings, ViewMode, Filter, EventTypeString, ValidationWarning, TodoItem, SchoolGoal, SettingsModalSection, Holiday, EventTypeConfig, EventTemplate, ShortenedWeekDetail, INSPECTION_STANDARDS } from './types';
 import { 
     auth, 
@@ -55,6 +56,92 @@ import {
 import { initialEvents, initialSettings, getHolidaysForYear, STORAGE_KEY, VO_DAYS_NORM, PO_HOURS_NORM } from './constants';
 import { createRoot } from 'react-dom/client';
 import { X, Calendar as CalendarIcon, AlertCircle, Keyboard, Trash2, Check, ChevronDown, Sparkles } from 'lucide-react';
+
+const commonHtml2CanvasOptions = {
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    backgroundColor: '#ffffff',
+    onclone: (clonedDoc: Document) => {
+        const styleOverride = clonedDoc.createElement('style');
+        styleOverride.innerHTML = `
+            * { 
+                box-shadow: none !important; 
+                filter: none !important;
+                -webkit-filter: none !important;
+                mask: none !important;
+                clip-path: none !important;
+            }
+        `;
+        clonedDoc.head.appendChild(styleOverride);
+
+        const linkTags = clonedDoc.getElementsByTagName('link');
+        for (let i = linkTags.length - 1; i >= 0; i--) {
+            if (linkTags[i].rel === 'stylesheet') {
+                linkTags[i].parentNode?.removeChild(linkTags[i]);
+            }
+        }
+
+        const styleTags = clonedDoc.getElementsByTagName('style');
+        for (let i = 0; i < styleTags.length; i++) {
+            let css = styleTags[i].innerHTML;
+            
+            // Comprehensive Tailwind 4 OKLCH to HEX Mapping
+            // Primary UI Colors
+            css = css.replace(/oklch\(0\.627 0\.194 256\.793\)/g, '#2563eb'); // blue-600
+            css = css.replace(/oklch\(0\.51 0\.15 252\)/g, '#4f46e5'); // indigo-600
+            css = css.replace(/oklch\(0\.71 0\.16 35\)/g, '#f59e0b'); // amber-500
+            css = css.replace(/oklch\(0\.62 0\.17 28\)/g, '#e11d48'); // rose-600
+            css = css.replace(/oklch\(0\.6 0\.16 150\)/g, '#10b981'); // emerald-500
+            css = css.replace(/oklch\(0\.205 0\.016 255\.685\)/g, '#0f172a'); // slate-900
+            css = css.replace(/oklch\(0\.448 0\.119 266\.588\)/g, '#475569'); // slate-600
+            
+            // Light Accents
+            css = css.replace(/oklch\(0\.96 0\.01 250\)/g, '#eff6ff'); // blue-50
+            css = css.replace(/oklch\(0\.96 0\.01 255\)/g, '#eef2ff'); // indigo-50
+            css = css.replace(/oklch\(0\.98 0\.01 260\)/g, '#f8fafc'); // slate-50
+            
+            // Flexible Sanitization for unknowns (keep some color instead of pure grey)
+            css = css.replace(/(oklch|oklab|color-mix)\([^)]+\)/g, (match) => {
+                const m = match.toLowerCase();
+                if (m.includes('blue') || m.includes('250') || m.includes('256')) return '#3b82f6';
+                if (m.includes('indigo') || m.includes('252') || m.includes('255')) return '#6366f1';
+                if (m.includes('rose') || m.includes('28') || m.includes('350')) return '#f43f5e';
+                if (m.includes('amber') || m.includes('35') || m.includes('50')) return '#f59e0b';
+                if (m.includes('emerald') || m.includes('150') || m.includes('160')) return '#10b981';
+                if (m.includes('white') || m.includes('0%')) return '#ffffff';
+                if (m.includes('900') || m.includes('slate-900')) return '#0f172a';
+                return '#64748b'; // default slate-500
+            });
+            
+            styleTags[i].innerHTML = css;
+        }
+
+        const allElements = clonedDoc.querySelectorAll('*');
+        allElements.forEach((node) => {
+            const el = node as HTMLElement;
+            if (el.style) {
+                el.style.boxShadow = 'none';
+                el.style.filter = 'none';
+                
+                // Sanitize inline styles
+                if (el.style.cssText && (el.style.cssText.includes('oklch') || el.style.cssText.includes('oklab') || el.style.cssText.includes('color-mix'))) {
+                    el.style.cssText = el.style.cssText.replace(/(oklch|oklab|color-mix)\([^)]+\)/g, 'inherit');
+                }
+            }
+            
+            // Fix SVG colors
+            ['fill', 'stroke'].forEach(attr => {
+                if (el.hasAttribute(attr)) {
+                    const val = el.getAttribute(attr);
+                    if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('color-mix'))) {
+                        el.setAttribute(attr, 'currentColor');
+                    }
+                }
+            });
+        });
+    }
+};
 
 const getWeekIdentifier = (d: Date): string => {
     const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -277,7 +364,7 @@ const App: React.FC = () => {
     const [warnings, setWarnings] = useState<ValidationWarning[]>([]);
     const [calendarView, setCalendarView] = useState<'grid-1' | 'grid-2' | 'grid-3' | 'list'>(() => {
         if (typeof window !== 'undefined') {
-            return window.innerWidth < 768 ? 'list' : 'grid-2';
+            return window.innerWidth < 1024 ? 'grid-1' : 'grid-2';
         }
         return 'grid-2';
     });
@@ -477,6 +564,65 @@ const App: React.FC = () => {
         
         setGoToTodayTrigger(prev => prev + 1);
     }, [settings.schoolYear]);
+
+    const handleDownloadManual = async () => {
+        setIsGeneratingPdf(true);
+        const offscreenContainer = document.createElement('div');
+        offscreenContainer.style.position = 'fixed';
+        offscreenContainer.style.left = '-4000px';
+        offscreenContainer.style.top = '0';
+        offscreenContainer.style.width = '794px';
+        document.body.appendChild(offscreenContainer);
+
+        try {
+            const manualWrapper = document.createElement('div');
+            manualWrapper.className = 'w-[794px] bg-white';
+            offscreenContainer.appendChild(manualWrapper);
+
+            const root = createRoot(manualWrapper);
+            root.render(<ManualPrint />);
+            
+            // Wait for render
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            const pages = manualWrapper.querySelectorAll('.manual-page');
+            
+            if (pages.length === 0) {
+                throw new Error("Geen pagina's gevonden om te printen.");
+            }
+
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'pt',
+                format: 'a4'
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+
+            for (let i = 0; i < pages.length; i++) {
+                const page = pages[i] as HTMLElement;
+                const canvas = await html2canvas(page, {
+                    ...commonHtml2CanvasOptions,
+                    width: 794,
+                    height: 1122,
+                    scale: 3
+                });
+
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                if (i > 0) pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+            }
+
+            pdf.save(`Handleiding_School_Jaarplanner_2.0.pdf`);
+        } catch (error) {
+            console.error("Error generating manual PDF", error);
+            alert("Er is een fout opgetreden bij het genereren van de handleiding.");
+        } finally {
+            document.body.removeChild(offscreenContainer);
+            setIsGeneratingPdf(false);
+        }
+    };
 
     const handleBatchDelete = useCallback(() => {
         if (selectedEventIds.length === 0) return;
@@ -1854,7 +2000,7 @@ const App: React.FC = () => {
             offscreenContainer.appendChild(pageWrapper);
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            const canvas = await html2canvas(pageWrapper, { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: 794, height: 1122 });
+            const canvas = await html2canvas(pageWrapper, { ...commonHtml2CanvasOptions, width: 794, height: 1122 });
             pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, pdfWidth, pdfHeight);
             
             pdf.save(`${settings.schoolName.replace(/\s+/g, '_')}_Jaarposter_${settings.schoolYear}.pdf`);
@@ -1879,8 +2025,8 @@ const App: React.FC = () => {
         offscreenContainer.style.position = 'fixed';
         offscreenContainer.style.top = '0';
         offscreenContainer.style.left = '-4000px';
-        offscreenContainer.style.width = '794px'; // A4 portrait width at 96 DPI
-        offscreenContainer.style.height = '1122px'; // A4 portrait height at 96 DPI
+        offscreenContainer.style.width = '1122px'; // A4 landscape width at 96 DPI
+        offscreenContainer.style.height = '794px'; // A4 landscape height at 96 DPI
         offscreenContainer.className = 'bg-white';
         document.body.appendChild(offscreenContainer);
 
@@ -1896,27 +2042,24 @@ const App: React.FC = () => {
 
         const addPdfHeader = (container: HTMLElement, title: string) => {
             const header = document.createElement('div');
-            header.className = 'flex justify-between items-end pb-8 border-b-2 border-slate-900 mb-8 bg-white';
+            header.className = 'flex justify-between items-baseline pb-4 border-b-2 border-slate-900 mb-6 bg-white';
             
             const logoHtml = settings.schoolLogoUrl 
-                ? `<img src="${settings.schoolLogoUrl}" class="h-10 w-auto object-contain mr-6" crossOrigin="anonymous" />` 
-                : '<div class="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center mr-6"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>';
+                ? `<img src="${settings.schoolLogoUrl}" class="h-12 w-auto object-contain mr-6" crossOrigin="anonymous" />` 
+                : '';
 
             header.innerHTML = `
                 <div class="flex items-center">
                     ${logoHtml}
                     <div class="flex flex-col">
-                        <h1 class="text-xl font-black text-slate-900 leading-none font-display tracking-tight uppercase">${settings.schoolName}</h1>
-                        <div class="flex items-center gap-3 mt-2">
-                            <span class="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] bg-slate-50 px-2 py-0.5 rounded border border-slate-100">${settings.schoolYear}</span>
-                            <div class="w-1 h-1 rounded-full bg-slate-200"></div>
-                            <span class="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">${exportMode === 'school' ? 'Strategisch Kader' : 'Activiteitenoverzicht'}</span>
+                        <h1 class="text-3xl font-black text-slate-900 leading-none tracking-tighter uppercase font-display">${settings.schoolName}</h1>
+                        <div class="flex items-center gap-3 mt-1.5">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">${settings.schoolYear}</span>
                         </div>
                     </div>
                 </div>
-                <div class="text-right flex flex-col items-end">
-                    <span class="text-[8px] font-black text-slate-300 uppercase tracking-[0.4em] mb-1.5">Publicatie</span>
-                    <span class="text-2xl font-black text-slate-900 uppercase tracking-tighter font-display leading-none">${title}</span>
+                <div class="text-right">
+                    <span class="text-5xl font-black text-slate-900 uppercase tracking-tighter font-display leading-none">${title}</span>
                 </div>
             `;
             container.appendChild(header);
@@ -1980,22 +2123,17 @@ const App: React.FC = () => {
 
         const addPdfFooter = (container: HTMLElement, pageNum: number, totalPages: number) => {
             const footer = document.createElement('div');
-            footer.className = 'pt-8 pb-4 bg-white text-slate-400 flex justify-between items-center text-[8px] uppercase tracking-[0.3em] font-black border-t border-slate-100';
+            footer.className = 'pt-4 pb-2 bg-white text-slate-400 flex justify-between items-center text-[8px] uppercase tracking-widest font-black border-t-2 border-slate-900 mt-auto';
             footer.innerHTML = `
                 <div class="flex items-center gap-6">
-                    <div class="flex items-center gap-2">
-                        <div class="w-5 h-5 rounded-md bg-slate-900 flex items-center justify-center text-white">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
-                        </div>
-                        <span class="text-slate-900 lowercase tracking-tighter">eduplan.pro</span>
-                    </div>
+                    <span class="text-slate-900 font-black">School Jaarplanner 2.0</span>
                     <span class="text-slate-200">|</span>
                     <span>Pagina ${pageNum} van ${totalPages}</span>
                 </div>
                 <div class="flex items-center gap-4">
                     <span>${settings.schoolName}</span>
                     <span class="text-slate-200">•</span>
-                    <span>Document ID: ${Math.random().toString(36).substring(2, 7).toUpperCase()}</span>
+                    <span>Document: ${exportMode === 'school' ? 'Intern' : 'Ouders'}</span>
                 </div>
             `;
             container.appendChild(footer);
@@ -2003,42 +2141,22 @@ const App: React.FC = () => {
 
         const addCoverPage = (container: HTMLElement, exportMode: ViewMode) => {
             const cover = document.createElement('div');
-            cover.className = 'flex flex-col h-[1122px] bg-white box-border px-24 py-32 items-center justify-between text-center';
+            cover.className = 'flex flex-col h-[794px] bg-white box-border px-24 py-16 items-center justify-center text-center';
             
             const logoHtml = settings.schoolLogoUrl 
-                ? `<img src="${settings.schoolLogoUrl}" class="h-32 w-auto object-contain mb-12" crossOrigin="anonymous" />` 
-                : '<div class="w-24 h-24 bg-slate-100 rounded-3xl flex items-center justify-center mb-12"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>';
+                ? `<img src="${settings.schoolLogoUrl}" class="h-40 w-auto object-contain mb-12" crossOrigin="anonymous" />` 
+                : '';
 
             cover.innerHTML = `
                 <div class="flex flex-col items-center">
                     ${logoHtml}
-                    <h1 class="text-5xl font-black text-slate-900 leading-tight font-display tracking-tighter uppercase mb-4">${settings.schoolName}</h1>
-                    <div class="w-24 h-2 bg-blue-600 rounded-full mb-8"></div>
-                    <h2 class="text-2xl font-bold text-slate-400 uppercase tracking-[0.3em] mb-2">Jaarplanning</h2>
-                    <h3 class="text-4xl font-black text-slate-900 uppercase tracking-widest">${settings.schoolYear}</h3>
-                </div>
-
-                <div class="flex flex-col items-center gap-6">
-                    <div class="bg-slate-50 border border-slate-100 rounded-2xl px-8 py-4">
-                        <span class="text-xs font-black text-slate-400 uppercase tracking-widest block mb-1">Publicatie Type</span>
-                        <span class="text-lg font-bold text-slate-700 uppercase">${exportMode === 'school' ? 'Interne Strategische Planning' : 'Ouderagenda & Activiteiten'}</span>
-                    </div>
-                    <p class="text-slate-400 text-sm max-w-md italic">
-                        "${settings.missionVision || 'Samen bouwen aan de toekomst van onze leerlingen.'}"
-                    </p>
-                </div>
-
-                <div class="text-slate-300 text-[10px] font-bold uppercase tracking-[0.4em]">
-                    Gegenereerd op ${new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    <h1 class="text-7xl font-black text-slate-900 leading-[0.8] font-display tracking-tighter uppercase mb-6">${settings.schoolName}</h1>
+                    <div class="w-24 h-2 bg-slate-900 rounded-full mb-12"></div>
+                    <h2 class="text-5xl font-black text-slate-900 uppercase tracking-[0.2em] mb-4">${settings.schoolYear}</h2>
+                    <h3 class="text-2xl font-black text-slate-400 uppercase tracking-[0.4em]">${exportMode === 'school' ? 'Interne Jaarplanning' : 'Jaarplanning'}</h3>
                 </div>
             `;
             container.appendChild(cover);
-            
-            // Add legend to cover page (Page 1)
-            const legendWrapper = document.createElement('div');
-            legendWrapper.className = 'w-full px-24 pb-12';
-            addLegendAndNotes(legendWrapper);
-            container.appendChild(legendWrapper);
         };
 
         const addStrategicOverview = (container: HTMLElement) => {
@@ -2099,10 +2217,6 @@ const App: React.FC = () => {
                     <div class="w-3 h-3 rounded-full ${bgClass} border border-black/5" ${style}></div>
                     <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">${type.name}</span>
                 `;
-                item.innerHTML = `
-                    <div class="w-3 h-3 rounded-full ${bgClass} border border-black/5" ${style}></div>
-                    <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">${type.name}</span>
-                `;
                 focusList.appendChild(item);
             });
             goalsSection.appendChild(focusList);
@@ -2128,32 +2242,10 @@ const App: React.FC = () => {
             addCoverPage(offscreenContainer, exportMode);
             await new Promise(resolve => setTimeout(resolve, 800));
             const coverCanvas = await html2canvas(offscreenContainer.firstChild as HTMLElement, { 
-                scale: 2, 
-                useCORS: true, 
-                backgroundColor: '#ffffff', 
-                width: 794, 
-                height: 1122,
-                onclone: (clonedDoc) => {
-                    // Sanitize oklch and oklab colors from styles
-                    const styleTags = clonedDoc.getElementsByTagName('style');
-                    for (let i = 0; i < styleTags.length; i++) {
-                        styleTags[i].innerHTML = styleTags[i].innerHTML.replace(/(oklch|oklab)\([^)]+\)/g, '#000000');
-                    }
-                    // Force computed styles to fix any var(), oklch() or oklab()
-                    const allElements = clonedDoc.getElementsByTagName('*');
-                    for (let i = 0; i < allElements.length; i++) {
-                        const el = allElements[i] as HTMLElement;
-                        if (el.style) {
-                            const computed = window.getComputedStyle(el);
-                            ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke'].forEach(prop => {
-                                const val = computed.getPropertyValue(prop);
-                                if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('var('))) {
-                                    el.style.setProperty(prop, '#000000', 'important');
-                                }
-                            });
-                        }
-                    }
-                }
+                ...commonHtml2CanvasOptions,
+                width: 1122, 
+                height: 794,
+                scale: 2
             });
             pdf.addImage(coverCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, pdfWidth, pdfHeight);
             pdf.addPage();
@@ -2163,129 +2255,14 @@ const App: React.FC = () => {
                 // --- PAGE 2: STRATEGIC OVERVIEW ---
                 offscreenContainer.innerHTML = '';
                 addStrategicOverview(offscreenContainer);
-                await new Promise(resolve => setTimeout(resolve, 800));
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 const stratCanvas = await html2canvas(offscreenContainer.firstChild as HTMLElement, { 
-                    scale: 2, 
-                    useCORS: true, 
-                    backgroundColor: '#ffffff', 
-                    width: 794, 
-                    height: 1122,
-                    onclone: (clonedDoc) => {
-                        const styleTags = clonedDoc.getElementsByTagName('style');
-                        for (let i = 0; i < styleTags.length; i++) {
-                            styleTags[i].innerHTML = styleTags[i].innerHTML.replace(/(oklch|oklab)\([^)]+\)/g, '#000000');
-                        }
-                        const allElements = clonedDoc.getElementsByTagName('*');
-                        for (let i = 0; i < allElements.length; i++) {
-                            const el = allElements[i] as HTMLElement;
-                            if (el.style) {
-                                const computed = window.getComputedStyle(el);
-                                ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke'].forEach(prop => {
-                                    const val = computed.getPropertyValue(prop);
-                                    if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('var('))) {
-                                        el.style.setProperty(prop, '#000000', 'important');
-                                    }
-                                });
-                            }
-                        }
-                    }
+                    ...commonHtml2CanvasOptions,
+                    width: 1122, 
+                    height: 794,
+                    scale: 2
                 });
                 pdf.addImage(stratCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, pdfWidth, pdfHeight);
-                pdf.addPage();
-                currentPage++;
-
-                // --- PAGE 3: SUMMARY CARDS ---
-                offscreenContainer.innerHTML = '';
-                const pageWrapper = document.createElement('div');
-                pageWrapper.className = 'flex flex-col h-[1122px] bg-white box-border px-16 pt-10 pb-16';
-                
-                addPdfHeader(pageWrapper, 'Analyse & Kengetallen');
-                
-                const summaryContent = document.createElement('div');
-                summaryContent.className = 'flex-grow px-12 py-4 flex flex-col gap-10';
-
-                const summaryCards = document.getElementById('summary-cards');
-                if (summaryCards) {
-                    const clonedCards = summaryCards.cloneNode(true) as HTMLElement;
-                    
-                    const cardsGrid = clonedCards.querySelector('.grid') as HTMLElement;
-                    if (cardsGrid) {
-                        cardsGrid.className = 'grid grid-cols-2 gap-8 items-stretch';
-                        
-                        cardsGrid.querySelectorAll('button').forEach(btn => btn.remove());
-                        cardsGrid.querySelectorAll('.shadow-sm').forEach(card => {
-                            const c = card as HTMLElement;
-                            c.style.boxShadow = 'none';
-                            c.className = 'bg-slate-50 border border-slate-200 rounded-[1.5rem] p-8 flex flex-col h-full min-h-[220px]';
-                            
-                            const h3 = c.querySelector('h3');
-                            if (h3) h3.className = 'text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6';
-                            
-                            const pMain = c.querySelector('p.text-3xl');
-                            if (pMain) pMain.className = 'text-5xl font-black text-slate-900 mb-3';
-
-                            const pSub = c.querySelector('p.text-xs');
-                            if (pSub) pSub.className = 'text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6';
-
-                            // Style lists in goal coverage
-                            const ul = c.querySelector('ul');
-                            if (ul) {
-                                ul.className = 'space-y-3 mt-2';
-                                ul.querySelectorAll('li').forEach(li => {
-                                    li.className = 'flex items-center gap-3 text-[11px] text-slate-700 font-bold';
-                                });
-                            }
-
-                            // Handle PieChart container
-                            const chartContainer = c.querySelector('.h-32');
-                            if (chartContainer) {
-                                (chartContainer as HTMLElement).style.height = '140px';
-                                (chartContainer as HTMLElement).style.width = '100%';
-                            }
-                        });
-                    }
-
-                    // Style Heatmap - REMOVE from PDF summary to keep it clean
-                    const heatmapContainer = clonedCards.querySelector('#year-heatmap');
-                    if (heatmapContainer) {
-                        heatmapContainer.remove();
-                    }
-                    
-                    summaryContent.appendChild(clonedCards);
-                }
-                
-                pageWrapper.appendChild(summaryContent);
-                addPdfFooter(pageWrapper, currentPage, totalPages);
-                offscreenContainer.appendChild(pageWrapper);
-
-                await new Promise(resolve => setTimeout(resolve, 800));
-                const canvas = await html2canvas(pageWrapper, { 
-                    scale: 2, 
-                    useCORS: true, 
-                    backgroundColor: '#ffffff', 
-                    width: 794, 
-                    height: 1122,
-                    onclone: (clonedDoc) => {
-                        const styleTags = clonedDoc.getElementsByTagName('style');
-                        for (let i = 0; i < styleTags.length; i++) {
-                            styleTags[i].innerHTML = styleTags[i].innerHTML.replace(/(oklch|oklab)\([^)]+\)/g, '#000000');
-                        }
-                        const allElements = clonedDoc.getElementsByTagName('*');
-                        for (let i = 0; i < allElements.length; i++) {
-                            const el = allElements[i] as HTMLElement;
-                            if (el.style) {
-                                const computed = window.getComputedStyle(el);
-                                ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke'].forEach(prop => {
-                                    const val = computed.getPropertyValue(prop);
-                                    if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('var('))) {
-                                        el.style.setProperty(prop, '#000000', 'important');
-                                    }
-                                });
-                            }
-                        }
-                    }
-                });
-                pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, pdfWidth, pdfHeight);
                 pdf.addPage();
                 currentPage++;
             }
@@ -2297,16 +2274,15 @@ const App: React.FC = () => {
                 offscreenContainer.innerHTML = '';
                 
                 const pageWrapper = document.createElement('div');
-                pageWrapper.className = 'flex flex-col h-[1122px] bg-white box-border px-16 pt-10 pb-16';
+                pageWrapper.className = 'flex flex-col h-[794px] bg-white box-border px-12 pt-8 pb-4';
                 
                 const monthDate = months[i];
-                const monthName = monthDate.toLocaleString('nl-NL', { month: 'long', year: 'numeric' });
+                const monthName = monthDate.toLocaleString('nl-NL', { month: 'long' });
                 
                 addPdfHeader(pageWrapper, monthName);
                 
                 const gridContainer = document.createElement('div');
-                gridContainer.style.height = '520px'; // More compact grid for PDF
-                gridContainer.className = 'flex flex-col mb-10 overflow-hidden';
+                gridContainer.className = 'flex-grow flex flex-col overflow-hidden';
                 
                 const gridRoot = createRoot(gridContainer);
                 gridRoot.render(
@@ -2327,57 +2303,20 @@ const App: React.FC = () => {
                     />
                 );
                 
-                const listContainer = document.createElement('div');
-                listContainer.className = 'flex flex-col overflow-hidden';
-                const listRoot = createRoot(listContainer);
-                listRoot.render(
-                    <CalendarPdfMonthlyEvents
-                        monthDate={monthDate}
-                        events={pdfEvents}
-                        holidays={allHolidays}
-                        settings={settings}
-                    />
-                );
-
-                // Wait for React to render both parts
+                // Wait for React to render
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
                 pageWrapper.appendChild(gridContainer);
-                pageWrapper.appendChild(listContainer);
                 
-                const spacer = document.createElement('div');
-                spacer.className = 'flex-grow';
-                pageWrapper.appendChild(spacer);
-
                 addPdfFooter(pageWrapper, currentPage, totalPages);
                 offscreenContainer.appendChild(pageWrapper);
 
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await new Promise(resolve => setTimeout(resolve, 1200));
                 const canvas = await html2canvas(pageWrapper, { 
-                    scale: 2, 
-                    useCORS: true, 
-                    backgroundColor: '#ffffff', 
-                    width: 794, 
-                    height: 1122,
-                    onclone: (clonedDoc) => {
-                        const styleTags = clonedDoc.getElementsByTagName('style');
-                        for (let i = 0; i < styleTags.length; i++) {
-                            styleTags[i].innerHTML = styleTags[i].innerHTML.replace(/(oklch|oklab)\([^)]+\)/g, '#000000');
-                        }
-                        const allElements = clonedDoc.getElementsByTagName('*');
-                        for (let i = 0; i < allElements.length; i++) {
-                            const el = allElements[i] as HTMLElement;
-                            if (el.style) {
-                                const computed = window.getComputedStyle(el);
-                                ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke'].forEach(prop => {
-                                    const val = computed.getPropertyValue(prop);
-                                    if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('var('))) {
-                                        el.style.setProperty(prop, '#000000', 'important');
-                                    }
-                                });
-                            }
-                        }
-                    }
+                    ...commonHtml2CanvasOptions,
+                    width: 1122, 
+                    height: 794,
+                    scale: 2
                 });
                 pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, pdfWidth, pdfHeight);
                 if (i < months.length - 1) pdf.addPage();
@@ -3205,6 +3144,7 @@ const App: React.FC = () => {
                 isOpen={isHelpModalOpen}
                 onClose={() => setIsHelpModalOpen(false)}
                 onStartTour={() => setShowTour(true)}
+                onDownloadManual={handleDownloadManual}
             />
             <ConflictAssistant
                 isOpen={isConflictAssistantOpen}

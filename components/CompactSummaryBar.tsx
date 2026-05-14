@@ -57,6 +57,7 @@ const SnelstartDropdown: React.FC<{
     return (
         <div className="relative" ref={dropdownRef}>
             <button 
+                id="snelstart-btn"
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-500 transition-all active:scale-95 group"
             >

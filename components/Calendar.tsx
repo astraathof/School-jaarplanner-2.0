@@ -1228,6 +1228,20 @@ const CalendarListView: React.FC<CalendarProps> = ({ events, holidays, onEventCl
     );
 };
 
+const getDayColor = (dayIndex: number) => {
+    // School specifieke kleuren van de week (Planbord methode)
+    const colors = [
+        '#FFEB3B', // Maandag - Geel
+        '#2196F3', // Dinsdag - Blauw
+        '#F44336', // Woensdag - Rood
+        '#4CAF50', // Donderdag - Groen
+        '#FF9800', // Vrijdag - Oranje
+        '#F5F5F5', // Zaterdag - Grijs
+        '#F5F5F5'  // Zondag - Grijs
+    ];
+    return colors[dayIndex];
+};
+
 export const CalendarPdfGridView: React.FC<CalendarProps & { monthDate: Date }> = ({ monthDate, events, holidays, settings }) => {
     const year = monthDate.getUTCFullYear();
     const month = monthDate.getUTCMonth();
@@ -1309,24 +1323,34 @@ export const CalendarPdfGridView: React.FC<CalendarProps & { monthDate: Date }> 
     return (
         <div className="flex flex-col h-full bg-white font-sans">
             {/* Grid Header */}
-            <div className="grid grid-cols-[2.5rem_repeat(7,minmax(0,1fr))] border-y-[1.5px] border-slate-900 bg-slate-50">
-                <div className="text-[10px] font-black text-slate-400 opacity-30 flex items-center justify-center border-r border-slate-200">#</div>
-                {days.map((day) => (
-                    <div key={day} className="py-2.5 text-center border-r border-slate-100 last:border-r-0">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">{day}</span>
+            <div className="grid grid-cols-[2rem_repeat(7,minmax(0,1fr))] border-y-2 border-slate-900 overflow-hidden">
+                <div className="bg-slate-50 border-r border-slate-200"></div>
+                {days.map((day, i) => (
+                    <div 
+                        key={day} 
+                        className="py-3 text-center border-r border-slate-900 last:border-r-0"
+                        style={{ backgroundColor: getDayColor(i) }}
+                    >
+                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-900">{day}</span>
                     </div>
                 ))}
             </div>
 
             {/* Grid Body */}
-            <div className="grid grid-cols-1 grid-rows-6 flex-grow border-b border-slate-200">
+            <div className="grid grid-cols-1 grid-rows-6 flex-grow">
                 {Array.from({ length: 6 }).map((_, rowIndex) => {
                     const rowCells = allCells.slice(rowIndex * 7, (rowIndex + 1) * 7);
+                    
+                    // Check if entire row is outside current month
+                    if (!rowCells.some(cell => cell.isCurrentMonth)) return null;
+
                     const weekNumber = getWeekNumber(rowCells[0].date);
 
                     return (
-                        <div key={rowIndex} className="grid grid-cols-[2.5rem_repeat(7,minmax(0,1fr))] flex-grow">
-                            <div className="flex items-center justify-center text-[9px] text-slate-400 font-mono border-r border-b border-slate-100 bg-slate-50/50">{weekNumber}</div>
+                        <div key={rowIndex} className="grid grid-cols-[2rem_repeat(7,minmax(0,1fr))] border-b border-slate-900 last:border-b-0 min-h-[85px]">
+                            <div className="flex items-center justify-center text-[8px] text-slate-400 font-black tracking-widest bg-slate-50 border-r border-slate-900 [writing-mode:vertical-lr] rotate-180">
+                                W {weekNumber}
+                            </div>
                             {rowCells.map(({ date, isCurrentMonth }, colIdx) => {
                                 const dateStr = date.toISOString().split('T')[0];
                                 const dayOfWeek = (date.getUTCDay() + 6) % 7;
@@ -1334,52 +1358,47 @@ export const CalendarPdfGridView: React.FC<CalendarProps & { monthDate: Date }> 
                                 const holiday = holidaysByDate.get(dateStr);
                                 const dayEvents = eventsByDate.get(dateStr) || [];
                                 
-                                const isLastCol = colIdx === 6;
-
                                 return (
                                     <div 
                                         key={dateStr}
-                                        className={`relative p-2.5 border-slate-100 min-h-0 flex flex-col gap-1.5 ${!isLastCol ? 'border-r' : ''} border-b
-                                            ${!isCurrentMonth ? 'bg-slate-50/30' : ''}
+                                        className={`relative p-2 border-r border-slate-900 last:border-r-0 flex flex-col gap-1
+                                            ${!isCurrentMonth ? 'bg-slate-50 opacity-40' : ''}
                                             ${isWeekend && isCurrentMonth ? 'bg-slate-50/50' : ''}
                                         `}
                                     >
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className={`text-base font-black tracking-tighter ${!isCurrentMonth ? 'text-slate-200' : 'text-slate-900'}`}>
+                                        <div className="flex justify-between items-start">
+                                            <span className={`text-base font-black tracking-tighter tabular-nums ${!isCurrentMonth ? 'text-slate-300' : 'text-slate-900'}`}>
                                                 {date.getUTCDate()}
                                             </span>
-                                            {holiday && (
-                                                <span className="text-[7px] font-black text-rose-500 uppercase tracking-widest">Vrije Dag</span>
-                                            )}
                                         </div>
 
                                         <div className="flex flex-col gap-1 overflow-hidden">
                                             {holiday && (
-                                                <div className="text-[9px] font-bold text-rose-600 leading-tight border-l-2 border-rose-500 pl-1.5 py-0.5 mb-1 bg-rose-50/50">
+                                                <div className="text-[9px] font-black text-rose-600 bg-rose-100/50 px-1.5 py-0.5 rounded border border-rose-200/50 truncate">
                                                     {holiday.name}
                                                 </div>
                                             )}
 
                                             {dayEvents.map((event, eventIdx) => {
                                                 const config = typeColors.get(event.type);
-                                                if (eventIdx > 3) return null;
-                                                if (eventIdx === 3 && dayEvents.length > 4) {
+                                                if (eventIdx > 5) return null;
+                                                if (eventIdx === 5 && dayEvents.length > 6) {
                                                     return (
-                                                        <div key="more" className="text-[8px] font-black text-slate-300 uppercase tracking-widest mt-1 italic">
-                                                            + {dayEvents.length - 3} andere
+                                                        <div key="more" className="text-[7px] font-black text-slate-300 uppercase italic">
+                                                            + {dayEvents.length - 5} items
                                                         </div>
                                                     );
                                                 }
                                                 return (
                                                     <div 
                                                         key={event.id}
-                                                        className="flex items-center gap-1.5 mb-0.5"
+                                                        className="flex items-center gap-1.5"
                                                     >
                                                         <div 
                                                             className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                                                             style={{ backgroundColor: event.color || config?.hex || '#94a3b8' }}
                                                         />
-                                                        <span className="text-[9px] font-bold text-slate-700 leading-tight truncate">
+                                                        <span className="text-[9px] font-bold text-slate-800 leading-tight truncate">
                                                             {event.title}
                                                         </span>
                                                     </div>

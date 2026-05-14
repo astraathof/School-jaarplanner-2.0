@@ -16,51 +16,69 @@ interface Step {
 
 const steps: Step[] = [
     {
-        title: "Welkom bij de Jaarplanner Pro!",
+        title: "Welkom bij de School Jaarplanner 2.0!",
         content: "Deze nieuwe versie is ontworpen voor schoolleiders die niet alleen plannen, maar ook sturen op kwaliteit. We laten je zien hoe je de planner gebruikt als strategisch instrument.",
         targetId: null,
         position: "center"
     },
     {
-        title: "1. Basisinrichting & Regio",
+        title: "1. AI Snelstart",
+        content: "Geen zin om alles handmatig over te typen? Gebruik de 'Slimme Import'. Upload een PDF of foto van je huidige planning en de AI zet het direct om in agenda-items.",
+        targetId: "snelstart-btn",
+        position: "bottom"
+    },
+    {
+        title: "2. Basisinrichting & Regio",
         content: "Stel hier je schooljaar en regio in. De planner synchroniseert automatisch de officiële vakanties, zodat je direct weet welke weken beschikbaar zijn voor onderwijs.",
         targetId: "header-settings-btn",
         position: "bottom"
     },
     {
-        title: "2. Strategische Doelen",
+        title: "3. Strategische Doelen",
         content: "Koppel je jaardoelen uit het schoolplan direct aan activiteiten. Gebruik de 'Strategische Roadmap' in het Analyses menu om te zien of je doelen over het hele jaar gedekt zijn.",
         targetId: "header-analyses-dropdown",
         position: "bottom"
     },
     {
-        title: "3. Inspectie & Kwaliteit",
+        title: "4. Inspectie & Kwaliteit",
         content: "Met de unieke Kwaliteitsmatrix zie je direct of je planning voldoet aan de inspectienormen (zoals de 4-daagse schoolweek en urennormen).",
         targetId: "header-analyses-dropdown",
         position: "bottom"
     },
     {
-        title: "4. AI Audit Assistant",
-        content: "Nieuw: Laat de AI Audit Assistant je planning scannen op professionele jaarcycli. De AI adviseert over de spreiding van rapportage, ouderavonden en studiedagen.",
+        title: "5. AI Audit Assistant",
+        content: "Laat de AI Audit Assistant je planning scannen op professionele jaarcycli. De AI adviseert over de spreiding van rapportage, ouderavonden en studiedagen.",
         targetId: "header-analyses-dropdown",
         position: "bottom"
     },
     {
-        title: "5. Werkdruk Management",
+        title: "6. Conflict Assistent",
+        content: "Nooit meer dubbele boekingen. De Conflict Assistent signaleert overlappingen tussen MT-vergaderingen, studiemiddagen en ouderavonden en helpt je deze direct op te lossen.",
+        targetId: "header-analyses-dropdown",
+        position: "bottom"
+    },
+    {
+        title: "7. Werkdruk Management",
         content: "Voorkom overbelasting. De visuele dashboards onderin geven je direct inzicht in de drukste maanden en de balans tussen onderwijs, organisatie en team-activiteiten.",
         targetId: "summary-cards",
         position: "top"
     },
     {
-        title: "6. Samenwerken in de Cloud",
+        title: "8. Samenwerken in de Cloud",
         content: "Schakel over naar de Cloud-modus om met je hele MT of werkgroep tegelijk in dezelfde planning te werken. Je ziet live wie wat aanpast.",
         targetId: "user-hub-toggle",
         position: "bottom"
     },
     {
-        title: "7. Heldere Communicatie",
+        title: "9. Heldere Communicatie",
         content: "Wissel tussen de interne 'School' versie en de publieke 'Ouder' versie. Exporteer professionele jaarposters of deel een live link voor op de website.",
         targetId: "header-view-toggles",
+        position: "bottom"
+    },
+    {
+        title: "10. Hulp & Handleiding",
+        content: "Heb je vragen? Klik op het vraagteken in de header om het Helpcentrum te openen. Hier kun je de tour opnieuw starten of een volledige handleiding als PDF printen.",
+        targetId: "header-help-btn",
         position: "bottom"
     },
     {
